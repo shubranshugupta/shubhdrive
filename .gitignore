@@ -39,3 +39,7 @@ details.txt
 
 ### Mac OS ###
 .DS_Store
+
+env.properties
+*.docx
+*.pdf
