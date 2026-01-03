@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 
 import com.drive.authservice.properties.AuthProperties;
 
+//TODO: Write Meaningfull Exception and its Handling Mechanism
 @SpringBootApplication
 @EnableConfigurationProperties(AuthProperties.class)
 public class AuthServiceApplication {
