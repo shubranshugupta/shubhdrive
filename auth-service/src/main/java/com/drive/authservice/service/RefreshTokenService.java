@@ -6,11 +6,13 @@ import com.drive.authservice.entity.User;
 import com.drive.authservice.repository.RefreshTokenRepository;
 import com.drive.authservice.repository.UserRepository;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // Important for delete/save
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -21,7 +23,7 @@ import java.util.UUID;
 public class RefreshTokenService {
 
     @Value("${auth.token.refresh-expiration}")
-    private long refreshExpiration;
+    private final long REFRESH_EXPIRATION;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
@@ -34,7 +36,7 @@ public class RefreshTokenService {
         RefreshToken refreshToken = RefreshToken.builder()
                 .user(user)
                 .token(UUID.randomUUID().toString())
-                .expiryDate(Instant.now().plusMillis(refreshExpiration))
+                .expiryDate(Instant.now().plusMillis(REFRESH_EXPIRATION))
                 .build();
 
         return refreshTokenRepository.save(refreshToken);
@@ -48,8 +50,25 @@ public class RefreshTokenService {
         return token;
     }
 
+    /**
+     * Revokes a refresh token (Used for Logout).
+     */
+    public void revokeToken(String token, HttpServletResponse httpResponse) {
+        refreshTokenRepository.findByToken(token)
+                .ifPresent(refreshTokenRepository::delete);
+
+        // B. Clear the Cookie (Overwrite with null and 0 maxAge)
+        Cookie cookie = new Cookie("refreshToken", null);
+        cookie.setHttpOnly(true);
+        //TODO: Set to true in production
+        cookie.setSecure(false);
+        cookie.setPath("/");
+        cookie.setMaxAge(0); // Expires immediately
+        httpResponse.addCookie(cookie);
+    }
+
     @Transactional // Ensure delete and save happen in one transaction
-    public LoginResponse processRefreshToken(String requestToken) {
+    public LoginResponse processRefreshToken(String requestToken, HttpServletResponse httpResponse) {
         // 1. Find and Verify (Unwrap the Optional first)
         RefreshToken token = refreshTokenRepository.findByToken(requestToken)
                 .map(this::verifyExpiration)
@@ -65,10 +84,17 @@ public class RefreshTokenService {
         String newAccess = jwtService.generateToken(user);
         RefreshToken newRefresh = createRefreshToken(user.getEmail());
 
+        Cookie refreshCookie = new Cookie("refreshToken", newRefresh.getToken());
+        refreshCookie.setHttpOnly(true);
+        // TODO: Set to true in production
+        refreshCookie.setSecure(false);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge((int) REFRESH_EXPIRATION / 1000); // 7 days
+        httpResponse.addCookie(refreshCookie);
+
         // 5. Return Response
         return LoginResponse.builder()
                 .accessToken(newAccess)
-                .refreshToken(newRefresh.getToken())
                 .status("SUCCESS")
                 .message("Token refreshed successfully")
                 .build();

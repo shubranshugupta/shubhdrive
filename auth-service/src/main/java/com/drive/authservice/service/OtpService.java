@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -19,9 +20,7 @@ public class OtpService {
     private final PasswordResetOtpRepository otpRepository;
     private final PasswordEncoder passwordEncoder;
 
-    /**
-     * TEST MODE: Generates OTP, saves hash to DB, and prints RAW OTP to Console.
-     */
+    @Transactional
     public void generateAndSendOtp(User user) {
         // 1. Clean up any existing OTP for this user to prevent clutter
         otpRepository.findByUser(user).ifPresent(otpRepository::delete);
@@ -53,12 +52,12 @@ public class OtpService {
      * Validates the OTP. Returns true if valid, false otherwise.
      * Manages attempt counting.
      */
-    public boolean validateOtp(User user, String inputOtp) {
+    public int validateOtp(User user, String inputOtp) {
         var otpOptional = otpRepository.findByUser(user);
 
         // 1. Check if exists
         if (otpOptional.isEmpty()) {
-            return false;
+            return 1;
         }
 
         PasswordResetOTP otpEntity = otpOptional.get();
@@ -66,18 +65,23 @@ public class OtpService {
         // 2. Check Expiry
         if (otpEntity.getExpiryTime().isBefore(LocalDateTime.now())) {
             otpRepository.delete(otpEntity);
-            return false;
+            return 1;
         }
 
         // 3. Check Match
         if (passwordEncoder.matches(inputOtp, otpEntity.getOtpHash())) {
             // Success: Clean up and return true
             otpRepository.delete(otpEntity);
-            return true;
+            return 0;
         } else {
-            // Failure: Increment attempts
-            incrementAttempts(otpEntity);
-            return false;
+            otpEntity.setAttempts(otpEntity.getAttempts() + 1);
+            if (otpEntity.getAttempts() > 3) {
+                otpRepository.delete(otpEntity);
+                return 2;
+            } else {
+                otpRepository.save(otpEntity);
+            }
+            return 1;
         }
     }
 
@@ -85,15 +89,5 @@ public class OtpService {
         SecureRandom random = new SecureRandom();
         int otp = 100000 + random.nextInt(900000);
         return String.valueOf(otp);
-    }
-
-    private void incrementAttempts(PasswordResetOTP otpEntity) {
-        otpEntity.setAttempts(otpEntity.getAttempts() + 1);
-        // Security: Lock out if too many attempts (Optional logic)
-        if (otpEntity.getAttempts() > 3) {
-            otpRepository.delete(otpEntity);
-        } else {
-            otpRepository.save(otpEntity);
-        }
     }
 }
