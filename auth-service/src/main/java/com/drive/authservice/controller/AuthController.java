@@ -16,7 +16,7 @@ import com.drive.authservice.dto.LoginRequest;
 
 
 @RestController
-@RequestMapping({"api/v1/auth", "api/auth"})
+@RequestMapping({"/api/v1/auth", "/api/auth"})
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;

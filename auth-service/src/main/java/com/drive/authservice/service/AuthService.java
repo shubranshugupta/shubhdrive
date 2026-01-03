@@ -28,7 +28,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     
     @Value("${auth.token.refresh-expiration}")
-    private final long REFRESH_EXPIRATION;
+    private long REFRESH_EXPIRATION;
 
     public LoginResponse login(LoginRequest request, HttpServletResponse httpResponse) {
         authenticationManager.authenticate(
