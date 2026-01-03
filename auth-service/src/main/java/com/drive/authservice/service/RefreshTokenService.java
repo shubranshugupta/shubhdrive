@@ -23,7 +23,7 @@ import java.util.UUID;
 public class RefreshTokenService {
 
     @Value("${auth.token.refresh-expiration}")
-    private final long REFRESH_EXPIRATION;
+    private long REFRESH_EXPIRATION;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
@@ -33,11 +33,18 @@ public class RefreshTokenService {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new RuntimeException("User not found: " + username));
 
-        RefreshToken refreshToken = RefreshToken.builder()
-                .user(user)
-                .token(UUID.randomUUID().toString())
-                .expiryDate(Instant.now().plusMillis(REFRESH_EXPIRATION))
-                .build();
+        // 1. Check if a token already exists for this user
+        RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
+                .orElse(
+                    // 2. If NOT exists, create a new builder
+                    RefreshToken.builder()
+                        .user(user)
+                        .build()
+                );
+
+        // 3. Update the existing (or new) token with a fresh UUID and Expiry
+        refreshToken.setToken(UUID.randomUUID().toString());
+        refreshToken.setExpiryDate(Instant.now().plusMillis(REFRESH_EXPIRATION));
 
         return refreshTokenRepository.save(refreshToken);
     }
