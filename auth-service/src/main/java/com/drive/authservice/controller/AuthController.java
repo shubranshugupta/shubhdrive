@@ -29,8 +29,7 @@ public class AuthController {
     ) {
         return ResponseEntity.ok(authService.login(request, httpResponse));
     }
-
-    //TODO: "/admin/setup", "/activate", "/refresh", "/logout" endpoints to be implemented
+    
     @PostMapping("/admin/setup")
     public ResponseEntity<LoginResponse> adminSetup(
         @RequestBody @Valid AdminSetupRequest request, 
