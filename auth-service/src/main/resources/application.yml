@@ -55,7 +55,6 @@ auth:
         secret-key: ${JWT_SECRET_KEY}
         jwt-expiration: 10800000        # 3 hours
         refresh-expiration: 604800000   # 7 days
-        token-expiration: 3600000       # 1 hour
     admin:
         username: ${ADMIN_USERNAME}
         password: ${ADMIN_PASSWORD}

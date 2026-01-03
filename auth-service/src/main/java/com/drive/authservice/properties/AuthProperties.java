@@ -20,7 +20,6 @@ public class AuthProperties {
         private String secretKey;
         private long jwtExpiration;
         private long refreshExpiration;
-        private long tokenExpiration;
     }
 
     @Data
